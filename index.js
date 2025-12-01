@@ -5,6 +5,11 @@ const axios = require('axios');
 const app = express();
 app.use(bodyParser.json());
 
+app.get('/shopify-webhook', (req, res) => {
+  res.send('Shopify webhook endpoint is live!');
+});
+
+
 const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
 
 app.post('/shopify-webhook', async (req, res) => {
