@@ -10,7 +10,7 @@ app.get('/shopify-webhook', (req, res) => {
   res.send('Shopify webhook endpoint is live!');
 });
 
-// Your Klaviyo private API key from Railway environment variables
+// Klaviyo API key from Railway environment variables
 const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
 
 // POST handler for Shopify webhook
@@ -20,14 +20,23 @@ app.post('/shopify-webhook', async (req, res) => {
     const email = customer.email;
     let birthday = null;
 
-    // Handle metafields as array or object
-    if (customer.metafields && Array.isArray(customer.metafields)) {
+    // Debug: log the whole metafields object
+    console.log('Metafields:', JSON.stringify(customer.metafields, null, 2));
+
+    // Check for metafields as a flat object (facts.birth_date)
+    if (customer.metafields && customer.metafields['facts.birth_date']) {
+      birthday = customer.metafields['facts.birth_date'];
+      console.log('Found birthday in flat object:', birthday);
+    }
+    // Or as an array (for other Shopify setups)
+    else if (customer.metafields && Array.isArray(customer.metafields)) {
       const bdayField = customer.metafields.find(
         m => m.namespace === 'facts' && m.key === 'birth_date'
       );
-      if (bdayField) birthday = bdayField.value;
-    } else if (customer.metafields && customer.metafields['facts.birth_date']) {
-      birthday = customer.metafields['facts.birth_date'];
+      if (bdayField) {
+        birthday = bdayField.value;
+        console.log('Found birthday in array:', birthday);
+      }
     }
 
     if (email && birthday) {
@@ -59,6 +68,6 @@ app.post('/shopify-webhook', async (req, res) => {
   }
 });
 
-// This is the correct way to set the port for Railway and other cloud hosts
-const PORT = process.env.PORT || 3000;
+// Explicitly use port 8080 for Railway
+const PORT = 8080;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
