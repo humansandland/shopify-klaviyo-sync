@@ -5,37 +5,42 @@ const axios = require('axios');
 const app = express();
 app.use(bodyParser.json());
 
-// GET handler for testing the endpoint in a browser
+// GET handler for browser testing
 app.get('/shopify-webhook', (req, res) => {
   res.send('Shopify webhook endpoint is live!');
 });
 
-// Klaviyo API key from Railway environment variables
+// Environment variables (set these in Railway dashboard)
 const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+const SHOPIFY_API_PASSWORD = process.env.SHOPIFY_API_PASSWORD; // This is your Admin API access token
+const SHOPIFY_SHOP = process.env.SHOPIFY_SHOP; // e.g. yourstore.myshopify.com
 
-// POST handler for Shopify webhook
 app.post('/shopify-webhook', async (req, res) => {
   try {
     const customer = req.body;
     const email = customer.email;
+    const customerId = customer.id;
     let birthday = null;
 
-    // Debug: log the whole metafields object
-    console.log('Metafields:', JSON.stringify(customer.metafields, null, 2));
-
-    // Check for metafields as a flat object (facts.birth_date)
-    if (customer.metafields && customer.metafields['facts.birth_date']) {
-      birthday = customer.metafields['facts.birth_date'];
-      console.log('Found birthday in flat object:', birthday);
-    }
-    // Or as an array (for other Shopify setups)
-    else if (customer.metafields && Array.isArray(customer.metafields)) {
-      const bdayField = customer.metafields.find(
+    // Fetch customer metafields from Shopify Admin API
+    if (customerId) {
+      const url = `https://${SHOPIFY_SHOP}/admin/api/2023-10/customers/${customerId}/metafields.json`;
+      const response = await axios.get(url, {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_API_PASSWORD,
+          'Content-Type': 'application/json'
+        }
+      });
+      const metafields = response.data.metafields;
+      // Debug: print all metafields
+      console.log('Fetched metafields:', JSON.stringify(metafields, null, 2));
+      const bdayField = metafields.find(
         m => m.namespace === 'facts' && m.key === 'birth_date'
       );
       if (bdayField) {
         birthday = bdayField.value;
-        console.log('Found birthday in array:', birthday);
+        console.log('Fetched birthday from Shopify API:', birthday);
       }
     }
 
@@ -68,6 +73,6 @@ app.post('/shopify-webhook', async (req, res) => {
   }
 });
 
-// Explicitly use port 8080 for Railway
+// Use port 8080 for Railway
 const PORT = 8080;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
