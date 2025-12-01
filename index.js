@@ -57,10 +57,11 @@ app.post('/shopify-webhook', async (req, res) => {
         }
       }, {
         headers: {
-          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+  'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  'revision': '2023-10-15'
+}
       });
       console.log(`Synced birthday for ${email}: ${birthday}`);
     } else {
