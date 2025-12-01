@@ -45,24 +45,29 @@ app.post('/shopify-webhook', async (req, res) => {
     }
 
     if (email && birthday) {
-      await axios.post('https://a.klaviyo.com/api/profiles/', {
-        data: {
-          type: 'profile',
-          attributes: {
-            email: email,
-            properties: {
-              Birthday: birthday
-            }
-          }
+      await axios.patch(
+  'https://a.klaviyo.com/api/profiles/',
+  {
+    data: {
+      type: 'profile',
+      attributes: {
+        email: email,
+        properties: {
+          Birthday: birthday
         }
-      }, {
-        headers: {
-  'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
-  'Content-Type': 'application/json',
-  'Accept': 'application/json',
-  'revision': '2023-10-15'
-}
-      });
+      }
+    }
+  },
+  {
+    headers: {
+      'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'revision': '2023-10-15'
+    }
+  }
+);
+
       console.log(`Synced birthday for ${email}: ${birthday}`);
     } else {
       console.log(`No birthday to sync for ${email}`);
