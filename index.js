@@ -45,7 +45,20 @@ app.post('/shopify-webhook', async (req, res) => {
     }
 
     if (email && birthday) {
-    await axios.post('https://a.klaviyo.com/api/profiles/', {
+
+console.log('Sending to Klaviyo:', JSON.stringify({
+  data: {
+    type: 'profile',
+    attributes: {
+      email: email,
+      properties: {
+        Birthday: birthday
+      }
+    }
+  }
+}, null, 2));
+
+   await axios.post('https://a.klaviyo.com/api/profiles/', {
   data: {
     type: 'profile',
     attributes: {
