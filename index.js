@@ -77,6 +77,9 @@ console.log('Sending to Klaviyo:', JSON.stringify({
   }
 });
 
+// Trigger redeploy
+
+
       console.log(`Synced birthday for ${email}: ${birthday}`);
     } else {
       console.log(`No birthday to sync for ${email}`);
