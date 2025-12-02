@@ -35,14 +35,27 @@ app.post('/shopify-webhook', async (req, res) => {
       const metafields = response.data.metafields;
       // Debug: print all metafields
       console.log('Fetched metafields:', JSON.stringify(metafields, null, 2));
-      const bdayField = metafields.find(
-        m => m.namespace === 'facts' && m.key === 'birth_date'
-      );
-      if (bdayField) {
-        birthday = bdayField.value;
-        console.log('Fetched birthday from Shopify API:', birthday);
-      }
-    }
+      let birthday = null;
+
+// 1. Look for your intended metafield first
+const bdayField = metafields.find(
+  m => m.namespace === 'facts' && m.key === 'birth_date'
+);
+if (bdayField) {
+  birthday = bdayField.value;
+  console.log('Fetched birthday from Shopify API:', birthday);
+}
+
+// 2. If not found, look for any other possible birthday metafield
+if (!birthday) {
+  const altBdayField = metafields.find(
+    m => m.key && m.key.toLowerCase().includes('birth')
+  );
+  if (altBdayField) {
+    birthday = altBdayField.value;
+    console.log('Fetched birthday from alternate metafield:', birthday);
+  }
+}
 
     if (email && birthday) {
 
@@ -64,7 +77,7 @@ console.log('Sending to Klaviyo:', JSON.stringify({
     attributes: {
       email: email,
       properties: {
-        Birthday: birthday
+        birthday: birthday
       }
     }
   }
