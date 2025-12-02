@@ -58,9 +58,9 @@ console.log('Sending to Klaviyo:', JSON.stringify({
   }
 }, null, 2));
 
-   await axios.post('https://a.klaviyo.com/api/profiles/', {
+   await axios.post('https://a.klaviyo.com/api/identify', {
   data: {
-    type: 'profile',
+    type: 'identify',
     attributes: {
       email: email,
       properties: {
@@ -76,6 +76,8 @@ console.log('Sending to Klaviyo:', JSON.stringify({
     'revision': '2023-10-15'
   }
 });
+console.log('Klaviyo Identify response: Success');
+
 
 const klaviyoResponse = await axios.post(
   'https://a.klaviyo.com/api/profiles/',
