@@ -10,12 +10,93 @@ app.get('/shopify-webhook', (req, res) => {
   res.send('Shopify webhook endpoint is live!');
 });
 
-// Environment variables (set these in Railway dashboard)
+// Environment variables
 const KLAVIYO_API_KEY = process.env.KLAVIYO_API_KEY;
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
 const SHOPIFY_API_PASSWORD = process.env.SHOPIFY_API_PASSWORD;
 const SHOPIFY_SHOP = process.env.SHOPIFY_SHOP;
 
+// Function to fetch metafields from Shopify
+async function fetchMetafields(customerId) {
+  const url = `https://${SHOPIFY_SHOP}/admin/api/2023-10/customers/${customerId}/metafields.json`;
+  const response = await axios.get(url, {
+    headers: {
+      'X-Shopify-Access-Token': SHOPIFY_API_PASSWORD,
+      'Content-Type': 'application/json'
+    }
+  });
+  return response.data.metafields;
+}
+
+// Function to set a metafield value
+async function setMetafield(customerId, namespace, key, value, type = 'single_line_text_field') {
+  const url = `https://${SHOPIFY_SHOP}/admin/api/2023-10/customers/${customerId}/metafields.json`;
+  
+  try {
+    await axios.post(url, {
+      metafield: {
+        namespace: namespace,
+        key: key,
+        value: value,
+        type: type
+      }
+    }, {
+      headers: {
+        'X-Shopify-Access-Token': SHOPIFY_API_PASSWORD,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log(`Set metafield ${namespace}.${key} = ${value}`);
+  } catch (err) {
+    console.error(`Error setting metafield ${namespace}.${key}:`, err.response?.data || err.message);
+  }
+}
+
+// Function to sync to Klaviyo
+async function syncToKlaviyo(email, birthday, gender) {
+  if (!email || (!birthday && !gender)) {
+    console.log(`No data to sync for ${email}`);
+    return;
+  }
+
+  const properties = {};
+  if (birthday) properties.birthday = birthday;
+  if (gender) properties.gender = gender;
+
+  console.log('Sending to Klaviyo:', JSON.stringify({
+    data: {
+      type: 'identify',
+      attributes: {
+        email: email,
+        properties: properties
+      }
+    }
+  }, null, 2));
+
+  try {
+    await axios.post('https://a.klaviyo.com/api/identify', {
+      data: {
+        type: 'identify',
+        attributes: {
+          email: email,
+          properties: properties
+        }
+      }
+    }, {
+      headers: {
+        'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'revision': '2023-10-15'
+      }
+    });
+    console.log('Klaviyo Identify response: Success');
+    console.log(`Synced data for ${email}: birthday=${birthday}, gender=${gender}`);
+  } catch (err) {
+    console.error('Error syncing to Klaviyo:', err.response?.data || err.message);
+  }
+}
+
+// Webhook for Customer Update (existing)
 app.post('/shopify-webhook', async (req, res) => {
   try {
     const customer = req.body;
@@ -24,19 +105,10 @@ app.post('/shopify-webhook', async (req, res) => {
     let birthday = null;
     let gender = null;
 
-    // Fetch customer metafields from Shopify Admin API
     if (customerId) {
-      const url = `https://${SHOPIFY_SHOP}/admin/api/2023-10/customers/${customerId}/metafields.json`;
-      const response = await axios.get(url, {
-        headers: {
-          'X-Shopify-Access-Token': SHOPIFY_API_PASSWORD,
-          'Content-Type': 'application/json'
-        }
-      });
-      const metafields = response.data.metafields;
+      const metafields = await fetchMetafields(customerId);
       console.log('Fetched metafields:', JSON.stringify(metafields, null, 2));
 
-      // 1. Look for birthday metafield
       const bdayField = metafields.find(
         m => m.namespace === 'facts' && m.key === 'birth_date'
       );
@@ -45,7 +117,6 @@ app.post('/shopify-webhook', async (req, res) => {
         console.log('Fetched birthday from Shopify API:', birthday);
       }
 
-      // 2. Look for gender metafield
       const genderField = metafields.find(
         m => m.namespace === 'custom' && m.key === 'gender'
       );
@@ -53,59 +124,57 @@ app.post('/shopify-webhook', async (req, res) => {
         gender = genderField.value;
         console.log('Fetched gender from Shopify API:', gender);
       }
+    }
 
-      // 3. If birthday not found in facts, look for alternate birthday metafield
-      if (!birthday) {
-        const altBdayField = metafields.find(
-          m => m.key && m.key.toLowerCase().includes('birth')
-        );
-        if (altBdayField) {
-          birthday = altBdayField.value;
-          console.log('Fetched birthday from alternate metafield:', birthday);
-        }
+    await syncToKlaviyo(email, birthday, gender);
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('Error in /shopify-webhook:', err.message);
+    res.status(500).send('Error');
+  }
+});
+
+// Webhook for Customer Created (new registrations)
+app.post('/shopify-webhook-register', async (req, res) => {
+  try {
+    const customer = req.body;
+    const email = customer.email;
+    const customerId = customer.id;
+    
+    console.log('New customer registration:', email);
+
+    // Extract birthday and gender from the form data if present
+    // Note: These might be in the webhook payload if Shopify captures them
+    let birthday = null;
+    let gender = null;
+
+    // Try to get from metafields (if Shopify saved them)
+    if (customerId) {
+      const metafields = await fetchMetafields(customerId);
+      console.log('Fetched metafields on registration:', JSON.stringify(metafields, null, 2));
+
+      const bdayField = metafields.find(
+        m => m.namespace === 'facts' && m.key === 'birth_date'
+      );
+      if (bdayField) {
+        birthday = bdayField.value;
+        console.log('Found birthday in metafields:', birthday);
+      }
+
+      const genderField = metafields.find(
+        m => m.namespace === 'custom' && m.key === 'gender'
+      );
+      if (genderField) {
+        gender = genderField.value;
+        console.log('Found gender in metafields:', gender);
       }
     }
 
-    // Sync to Klaviyo if we have email and at least birthday or gender
-    if (email && (birthday || gender)) {
-      const properties = {};
-      if (birthday) properties.birthday = birthday;
-      if (gender) properties.gender = gender;
-
-      console.log('Sending to Klaviyo:', JSON.stringify({
-        data: {
-          type: 'identify',
-          attributes: {
-            email: email,
-            properties: properties
-          }
-        }
-      }, null, 2));
-
-      await axios.post('https://a.klaviyo.com/api/identify', {
-        data: {
-          type: 'identify',
-          attributes: {
-            email: email,
-            properties: properties
-          }
-        }
-      }, {
-        headers: {
-          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'revision': '2023-10-15'
-        }
-      });
-      console.log('Klaviyo Identify response: Success');
-      console.log(`Synced data for ${email}: birthday=${birthday}, gender=${gender}`);
-    } else {
-      console.log(`No data to sync for ${email}`);
-    }
+    // Sync to Klaviyo
+    await syncToKlaviyo(email, birthday, gender);
     res.status(200).send('OK');
   } catch (err) {
-    console.error('Error syncing to Klaviyo:', err.response?.data || err.message);
+    console.error('Error in /shopify-webhook-register:', err.message);
     res.status(500).send('Error');
   }
 });
