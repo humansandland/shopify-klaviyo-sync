@@ -77,8 +77,30 @@ console.log('Sending to Klaviyo:', JSON.stringify({
   }
 });
 
-// Trigger redeploy
+const klaviyoResponse = await axios.post(
+  'https://a.klaviyo.com/api/profiles/',
+  {
+    data: {
+      type: 'profile',
+      attributes: {
+        email: email,
+        properties: {
+          Birthday: birthday
+        }
+      }
+    }
+  },
+  {
+    headers: {
+      'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'revision': '2023-10-15'
+    }
+  }
+);
 
+console.log('Klaviyo API response:', klaviyoResponse.data);
 
       console.log(`Synced birthday for ${email}: ${birthday}`);
     } else {
