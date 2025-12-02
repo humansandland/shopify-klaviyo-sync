@@ -45,6 +45,7 @@ if (bdayField) {
   birthday = bdayField.value;
   console.log('Fetched birthday from Shopify API:', birthday);
 }
+	}
 
 // 2. If not found, look for any other possible birthday metafield
 if (!birthday) {
