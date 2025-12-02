@@ -63,8 +63,8 @@ app.post('/shopify-webhook', async (req, res) => {
           attributes: {
             email: email,
             properties: {
-              birthday: birthday
-            }
+  Birth_Date: birthday
+}
           }
         }
       }, null, 2));
