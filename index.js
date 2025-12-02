@@ -179,6 +179,22 @@ app.post('/shopify-webhook-register', async (req, res) => {
   }
 });
 
+// Endpoint to capture registration form data
+app.post('/capture-registration', async (req, res) => {
+  try {
+    const { email, gender, birthday } = req.body;
+    console.log('Captured registration data:', { email, gender, birthday });
+    
+    // TODO: Find customer by email and set metafields
+    // For now, just log it
+    res.status(200).send('Data captured');
+  } catch (err) {
+    console.error('Error capturing registration:', err.message);
+    res.status(500).send('Error');
+  }
+});
+
 // Use port 8080 for Railway
 const PORT = 8080;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
