@@ -46,8 +46,10 @@ async function setMetafield(customerId, namespace, key, value, type = 'single_li
       }
     });
     console.log(`Set metafield ${namespace}.${key} = ${value}`);
+    return true;
   } catch (err) {
     console.error(`Error setting metafield ${namespace}.${key}:`, err.response?.data || err.message);
+    return false;
   }
 }
 
@@ -143,12 +145,13 @@ app.post('/shopify-webhook-register', async (req, res) => {
     
     console.log('New customer registration:', email);
 
-    // Extract birthday and gender from the form data if present
-    // Note: These might be in the webhook payload if Shopify captures them
+    // Wait a moment for Shopify to process the form data
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Fetch metafields to see if Shopify saved them
     let birthday = null;
     let gender = null;
 
-    // Try to get from metafields (if Shopify saved them)
     if (customerId) {
       const metafields = await fetchMetafields(customerId);
       console.log('Fetched metafields on registration:', JSON.stringify(metafields, null, 2));
@@ -179,22 +182,6 @@ app.post('/shopify-webhook-register', async (req, res) => {
   }
 });
 
-// Endpoint to capture registration form data
-app.post('/capture-registration', async (req, res) => {
-  try {
-    const { email, gender, birthday } = req.body;
-    console.log('Captured registration data:', { email, gender, birthday });
-    
-    // TODO: Find customer by email and set metafields
-    // For now, just log it
-    res.status(200).send('Data captured');
-  } catch (err) {
-    console.error('Error capturing registration:', err.message);
-    res.status(500).send('Error');
-  }
-});
-
 // Use port 8080 for Railway
 const PORT = 8080;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
