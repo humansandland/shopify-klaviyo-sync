@@ -22,6 +22,7 @@ app.post('/shopify-webhook', async (req, res) => {
     const email = customer.email;
     const customerId = customer.id;
     let birthday = null;
+    let gender = null;
 
     // Fetch customer metafields from Shopify Admin API
     if (customerId) {
@@ -35,7 +36,7 @@ app.post('/shopify-webhook', async (req, res) => {
       const metafields = response.data.metafields;
       console.log('Fetched metafields:', JSON.stringify(metafields, null, 2));
 
-      // 1. Look for your intended metafield first
+      // 1. Look for birthday metafield
       const bdayField = metafields.find(
         m => m.namespace === 'facts' && m.key === 'birth_date'
       );
@@ -44,7 +45,16 @@ app.post('/shopify-webhook', async (req, res) => {
         console.log('Fetched birthday from Shopify API:', birthday);
       }
 
-      // 2. If not found, look for any other possible birthday metafield
+      // 2. Look for gender metafield
+      const genderField = metafields.find(
+        m => m.namespace === 'custom' && m.key === 'gender'
+      );
+      if (genderField) {
+        gender = genderField.value;
+        console.log('Fetched gender from Shopify API:', gender);
+      }
+
+      // 3. If birthday not found in facts, look for alternate birthday metafield
       if (!birthday) {
         const altBdayField = metafields.find(
           m => m.key && m.key.toLowerCase().includes('birth')
@@ -56,15 +66,18 @@ app.post('/shopify-webhook', async (req, res) => {
       }
     }
 
-    if (email && birthday) {
+    // Sync to Klaviyo if we have email and at least birthday or gender
+    if (email && (birthday || gender)) {
+      const properties = {};
+      if (birthday) properties.birthday = birthday;
+      if (gender) properties.gender = gender;
+
       console.log('Sending to Klaviyo:', JSON.stringify({
         data: {
           type: 'identify',
           attributes: {
             email: email,
-            properties: {
-  Birth_Date: birthday
-}
+            properties: properties
           }
         }
       }, null, 2));
@@ -74,9 +87,7 @@ app.post('/shopify-webhook', async (req, res) => {
           type: 'identify',
           attributes: {
             email: email,
-            properties: {
-              birthday: birthday
-            }
+            properties: properties
           }
         }
       }, {
@@ -88,9 +99,9 @@ app.post('/shopify-webhook', async (req, res) => {
         }
       });
       console.log('Klaviyo Identify response: Success');
-      console.log(`Synced birthday for ${email}: ${birthday}`);
+      console.log(`Synced data for ${email}: birthday=${birthday}, gender=${gender}`);
     } else {
-      console.log(`No birthday to sync for ${email}`);
+      console.log(`No data to sync for ${email}`);
     }
     res.status(200).send('OK');
   } catch (err) {
