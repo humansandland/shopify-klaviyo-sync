@@ -144,7 +144,7 @@ app.post('/shopify-webhook-register', async (req, res) => {
       console.log('Fetched metafields on registration:', JSON.stringify(metafields, null, 2));
 
       const bdayField = metafields.find(
-        m => m.namespace === 'custom' && m.key === 'registration_birthday'
+        m => m.namespace === 'custom' && m.key === 'birthday_date'
       );
       if (bdayField) {
         birthday = bdayField.value;
@@ -167,6 +167,7 @@ app.post('/shopify-webhook-register', async (req, res) => {
     res.status(500).send('Error');
   }
 });
+
 
 // Use port 8080 for Railway
 const PORT = 8080;
