@@ -61,7 +61,23 @@ async function syncToKlaviyo(email, birthday, gender) {
   }
 
   const properties = {};
-  if (birthday) properties.birthday = birthday;
+  
+  // Convert birthday text to date format if it exists
+  if (birthday) {
+    // Try to parse "June 26, 1969" format to "1969-06-26"
+    try {
+      const date = new Date(birthday);
+      if (!isNaN(date.getTime())) {
+        properties.birthday = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        console.log('Converted birthday to:', properties.birthday);
+      } else {
+        properties.birthday = birthday; // Keep as-is if parsing fails
+      }
+    } catch (e) {
+      properties.birthday = birthday;
+    }
+  }
+  
   if (gender) properties.gender = gender;
 
   console.log('Sending to Klaviyo:', JSON.stringify({
@@ -72,6 +88,32 @@ async function syncToKlaviyo(email, birthday, gender) {
         properties: properties
       }
     }
+  }, null, 2));
+
+  try {
+    await axios.post('https://a.klaviyo.com/api/identify', {
+      data: {
+        type: 'identify',
+        attributes: {
+          email: email,
+          properties: properties
+        }
+      }
+    }, {
+      headers: {
+        'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'revision': '2023-10-15'
+      }
+    });
+    console.log('Klaviyo Identify response: Success');
+    console.log(`Synced data for ${email}: birthday=${properties.birthday}, gender=${properties.gender}`);
+  } catch (err) {
+    console.error('Error syncing to Klaviyo:', err.response?.data || err.message);
+  }
+}
+
   }, null, 2));
 
   try {
