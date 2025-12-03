@@ -36,10 +36,11 @@ async function syncToKlaviyo(email, birthday, gender) {
 
   const properties = {};
   
-  if (birthday) {
-    properties.birthday = birthday;
-    console.log('Birthday to sync:', birthday);
-  }
+ if (birthday) {
+  properties.birthday = birthday;
+  properties.$birthday = birthday;
+  console.log('Birthday to sync:', birthday);
+}
   
   if (gender) {
     properties.gender = gender;
