@@ -27,32 +27,6 @@ async function fetchMetafields(customerId) {
   return response.data.metafields;
 }
 
-// Function to set a metafield value
-async function setMetafield(customerId, namespace, key, value, type = 'single_line_text_field') {
-  const url = `https://${SHOPIFY_SHOP}/admin/api/2023-10/customers/${customerId}/metafields.json`;
-  
-  try {
-    await axios.post(url, {
-      metafield: {
-        namespace: namespace,
-        key: key,
-        value: value,
-        type: type
-      }
-    }, {
-      headers: {
-        'X-Shopify-Access-Token': SHOPIFY_API_PASSWORD,
-        'Content-Type': 'application/json'
-      }
-    });
-    console.log(`Set metafield ${namespace}.${key} = ${value}`);
-    return true;
-  } catch (err) {
-    console.error(`Error setting metafield ${namespace}.${key}:`, err.response?.data || err.message);
-    return false;
-  }
-}
-
 // Function to sync to Klaviyo
 async function syncToKlaviyo(email, birthday, gender) {
   if (!email || (!birthday && !gender)) {
@@ -64,14 +38,13 @@ async function syncToKlaviyo(email, birthday, gender) {
   
   // Convert birthday text to date format if it exists
   if (birthday) {
-    // Try to parse "June 26, 1969" format to "1969-06-26"
     try {
       const date = new Date(birthday);
       if (!isNaN(date.getTime())) {
-        properties.birthday = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        properties.birthday = date.toISOString().split('T')[0];
         console.log('Converted birthday to:', properties.birthday);
       } else {
-        properties.birthday = birthday; // Keep as-is if parsing fails
+        properties.birthday = birthday;
       }
     } catch (e) {
       properties.birthday = birthday;
@@ -114,33 +87,7 @@ async function syncToKlaviyo(email, birthday, gender) {
   }
 }
 
-  }, null, 2));
-
-  try {
-    await axios.post('https://a.klaviyo.com/api/identify', {
-      data: {
-        type: 'identify',
-        attributes: {
-          email: email,
-          properties: properties
-        }
-      }
-    }, {
-      headers: {
-        'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'revision': '2023-10-15'
-      }
-    });
-    console.log('Klaviyo Identify response: Success');
-    console.log(`Synced data for ${email}: birthday=${birthday}, gender=${gender}`);
-  } catch (err) {
-    console.error('Error syncing to Klaviyo:', err.response?.data || err.message);
-  }
-}
-
-// Webhook for Customer Update (existing)
+// Webhook for Customer Update
 app.post('/shopify-webhook', async (req, res) => {
   try {
     const customer = req.body;
@@ -178,7 +125,7 @@ app.post('/shopify-webhook', async (req, res) => {
   }
 });
 
-// Webhook for Customer Created (new registrations)
+// Webhook for Customer Created
 app.post('/shopify-webhook-register', async (req, res) => {
   try {
     const customer = req.body;
@@ -187,10 +134,8 @@ app.post('/shopify-webhook-register', async (req, res) => {
     
     console.log('New customer registration:', email);
 
-    // Wait a moment for Shopify to process the form data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Fetch metafields to see if Shopify saved them
     let birthday = null;
     let gender = null;
 
@@ -198,7 +143,6 @@ app.post('/shopify-webhook-register', async (req, res) => {
       const metafields = await fetchMetafields(customerId);
       console.log('Fetched metafields on registration:', JSON.stringify(metafields, null, 2));
 
-      // Look for birthday in custom.registration_birthday
       const bdayField = metafields.find(
         m => m.namespace === 'custom' && m.key === 'registration_birthday'
       );
@@ -207,7 +151,6 @@ app.post('/shopify-webhook-register', async (req, res) => {
         console.log('Found birthday in metafields:', birthday);
       }
 
-      // Look for gender in custom.gender
       const genderField = metafields.find(
         m => m.namespace === 'custom' && m.key === 'gender'
       );
@@ -217,7 +160,6 @@ app.post('/shopify-webhook-register', async (req, res) => {
       }
     }
 
-    // Sync to Klaviyo
     await syncToKlaviyo(email, birthday, gender);
     res.status(200).send('OK');
   } catch (err) {
@@ -225,7 +167,6 @@ app.post('/shopify-webhook-register', async (req, res) => {
     res.status(500).send('Error');
   }
 });
-
 
 // Use port 8080 for Railway
 const PORT = 8080;
