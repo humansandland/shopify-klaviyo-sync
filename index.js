@@ -156,14 +156,16 @@ app.post('/shopify-webhook-register', async (req, res) => {
       const metafields = await fetchMetafields(customerId);
       console.log('Fetched metafields on registration:', JSON.stringify(metafields, null, 2));
 
+      // Look for birthday in custom.registration_birthday
       const bdayField = metafields.find(
-        m => m.namespace === 'facts' && m.key === 'birth_date'
+        m => m.namespace === 'custom' && m.key === 'registration_birthday'
       );
       if (bdayField) {
         birthday = bdayField.value;
         console.log('Found birthday in metafields:', birthday);
       }
 
+      // Look for gender in custom.gender
       const genderField = metafields.find(
         m => m.namespace === 'custom' && m.key === 'gender'
       );
@@ -181,6 +183,7 @@ app.post('/shopify-webhook-register', async (req, res) => {
     res.status(500).send('Error');
   }
 });
+
 
 // Use port 8080 for Railway
 const PORT = 8080;
