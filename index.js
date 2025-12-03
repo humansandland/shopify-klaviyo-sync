@@ -134,7 +134,7 @@ app.post('/shopify-webhook-register', async (req, res) => {
     
     console.log('New customer registration:', email);
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     let birthday = null;
     let gender = null;
